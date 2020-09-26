@@ -246,7 +246,7 @@ namespace WinQuickUpdater
 							for (auto& update : m_updates)
 							{
 								update.checked = true;
-								if (std::find(m_selected_updates.begin(), m_selected_updates.end(), update.idx) != m_selected_updates.end())
+								if (std::find(m_selected_updates.begin(), m_selected_updates.end(), update.idx) == m_selected_updates.end())
 									m_selected_updates.emplace_back(update.idx);
 							}
 						}

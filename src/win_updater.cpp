@@ -12,6 +12,29 @@ namespace WinQuickUpdater
 {
 	volatile bool g_update_search_completed = false;
 
+	inline bool get_reboot_permission()
+	{
+		bool ret = false;
+		HANDLE token = nullptr;
+
+		if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token))
+		{
+			TOKEN_PRIVILEGES tp;
+			tp.PrivilegeCount = 1;
+			tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+			if (LookupPrivilegeValue(NULL, SE_SHUTDOWN_NAME, &tp.Privileges[0].Luid))
+			{
+				AdjustTokenPrivileges(token, FALSE, &tp, 0, NULL, NULL);
+				ret = true;
+			}
+
+			CloseHandle(token);
+		}
+
+		return ret;
+	}
+
 	win_updater::win_updater() : 
 		m_start_update(false)
 	{
@@ -503,6 +526,14 @@ namespace WinQuickUpdater
 					reboot_required = true;
 
 				WinQuickUpdater::CLog::Instance().Log(WinQuickUpdater::LL_SYS, fmt::format("Installer routine completed. Reboot required: {}", reboot_required));
+
+				if (reboot_required && get_reboot_permission())
+				{
+					const auto reboot_res = MessageBox(NULL, "Reboot required for complete Windows update installer, Should you continue?", "WinQuickUpdater", MB_YESNO | MB_ICONINFORMATION);
+					if (reboot_res == IDYES)
+						if (!ExitWindowsEx(EWX_REBOOT, SHTDN_REASON_MAJOR_APPLICATION | SHTDN_REASON_FLAG_PLANNED))
+							WinQuickUpdater::CLog::Instance().LogError("ExitWindowsEx failed", true, true);
+				}
 			}
 
 			completed = true;
